@@ -1,4 +1,3 @@
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +29,7 @@ import org.jsoup.Jsoup;
 
 
 public class Crawler {
+	private String[] BAD_EXT = {"jpg", "jpeg", "png", "ogg"};
 	private LinkedList<String> URLList= new LinkedList<String>();
 	private HashMap<String, Date> VisitedUrls = new HashMap<String, Date>();
 	private String indexPath;
@@ -86,20 +86,27 @@ public class Crawler {
 				
 				VisitedUrls.put(url, new Date()); // record that the url was visited, at the current time
 				
-				// TODO do something with content ...
-				if(indexing){
-					try {
-						indexUrlAndContent(url, content);
-					} catch(IOException e) {
-						e.printStackTrace();
+				if (content != null)
+				{
+					// TODO do something with content ...
+					if(indexing){
+						try {
+							indexUrlAndContent(url, content);
+						} catch(IOException e) {
+							e.printStackTrace();
+						}
+					}
+					
+					List<String> links = extractURLs(content, url);
+					
+					for (String link : links)
+					{
+						URLList.add(link);	
 					}
 				}
-				
-				List<String> links = extractURLs(content);
-				
-				for (String link : links)
+				else
 				{
-					URLList.add(link);	
+					System.out.println("Error opening URL, continuing : " + url);
 				}
 				
 				counter++;
@@ -162,40 +169,90 @@ public class Crawler {
 		return Jsoup.parse(content).title();
 	}
 	
-	public List<String> extractURLs(String content)
+	public List<String> extractURLs(String content, String pageUrl)
 	{
-		int curIndex = 0;
 		ArrayList<String> urls = new ArrayList<String>();
-		while (true)
-		{
-			curIndex = content.indexOf("<a", curIndex);
-			if (curIndex == -1)
-				break; // No more links in this document
+		try {
+			URL url = new URL(pageUrl);
 			
-			// find the end tag
-			int endTagIndex = content.indexOf(">", curIndex);
-			if (endTagIndex == -1)
-				break; // End tag not found, invalid HTML
 			
-			String element = content.substring(curIndex, endTagIndex);
-			// find href attribute
-			Pattern pattern = Pattern.compile("href=\"([^\"]+)\"");
-			Matcher matcher = pattern.matcher(element);
-			if (matcher.find())
+			int curIndex = 0;
+			
+			while (true)
 			{
-				// url is group 1 of the regex match
-				String href = matcher.group(1);
+				curIndex = content.indexOf("<a", curIndex);
+				if (curIndex == -1)
+					break; // No more links in this document
 				
-				// add url to the list
-				if (href != null)
+				// find the end tag
+				int endTagIndex = content.indexOf(">", curIndex);
+				if (endTagIndex == -1)
+					break; // End tag not found, invalid HTML
+				
+				String element = content.substring(curIndex, endTagIndex);
+				// find href attribute
+				Pattern pattern = Pattern.compile("href=\"([^\"]+)\"");
+				Matcher matcher = pattern.matcher(element);
+				
+				curIndex = endTagIndex;
+				
+				if (matcher.find())
 				{
-					// TODO pre-process url: e.g. add domain if missing?
-					urls.add(href);
+					// url is group 1 of the regex match
+					String href = matcher.group(1);
+					
+					// add url to the list
+					if (href != null)
+					{
+						// TODO pre-process url: e.g. add domain if missing?
+
+						// starts with "#": abort
+						if (href.startsWith("#"))
+							continue;
+						// ends with unwanted extension : abort
+						boolean extension_ok = true;
+						for (String ext : BAD_EXT)
+						{
+							if (href.endsWith(".".concat(ext)))
+							{
+								extension_ok = false;
+								break;
+							}
+						}		
+						if (!extension_ok)
+							continue;
+						
+						// starts with "//": add http: to the front
+						if (href.startsWith("//"))
+						{
+							
+							href = url.getProtocol() + ":" + href;
+						}
+						
+						// starts with / : add http://host name
+						if (href.startsWith("/"))
+						{
+							href = url.getProtocol() + "://" + url.getHost() + href;
+						}
+						
+						// substitute special character sequences
+						// 1. &amp; -> &
+						href = href.replaceAll("&amp;", "&");
+						
+						
+						//debug
+						System.out.println("added url:" + href);
+						
+						urls.add(href);
+					}
 				}
+				
+				
+				
 			}
-			
-			
-			curIndex = endTagIndex;
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		
 		return urls;
@@ -229,6 +286,7 @@ public class Crawler {
 		
 		//default page
 		String webpage = "https://www.udacity.com/cs101x/index.html";
+		//String webpage = "https://en.wikipedia.org/wiki/Lolcat";
 		
 		for(int i = 0; i < args.length; i++) {
 			if(args[i].equals("-index") && i <args.length ) {
