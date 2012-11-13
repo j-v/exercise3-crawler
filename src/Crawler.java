@@ -33,8 +33,16 @@ public class Crawler {
 	private LinkedList<String> URLList= new LinkedList<String>();
 	private HashMap<String, Date> VisitedUrls = new HashMap<String, Date>();
 	private String indexPath;
-	boolean indexing = false;
-	boolean first_time = true;
+	private int depth;
+	private boolean indexing;
+	private boolean first_time;
+	
+	public Crawler() {
+		//default values
+		depth = -1;
+		indexing = false;
+		first_time = true;
+	}
 	
 	public void addURL(String url)
 	{
@@ -54,8 +62,13 @@ public class Crawler {
 		this.indexPath = indexPath;
 	}
 	
+	public void setMaxDepth(int depth) {
+		this.depth = depth;
+	}
+	
 	public void start()
 	{
+		int counter = 0;
 		while (!URLList.isEmpty())
 		{
 			String url = URLList.removeFirst();
@@ -63,6 +76,9 @@ public class Crawler {
 			// check if URL was visited
 			if (!VisitedUrls.containsKey(url))
 			{
+				if(depth != -1 && counter >= depth) {
+					break;
+				}
 				// debug
 				System.out.println("Visiting " + url);
 				
@@ -73,7 +89,7 @@ public class Crawler {
 				// TODO do something with content ...
 				if(indexing){
 					try {
-						indexUrlAndContent(url, normalize(content));
+						indexUrlAndContent(url, content);
 					} catch(IOException e) {
 						e.printStackTrace();
 					}
@@ -85,6 +101,9 @@ public class Crawler {
 				{
 					URLList.add(link);	
 				}
+				
+				counter++;
+				
 			}
 			else
 			{
@@ -123,13 +142,19 @@ public class Crawler {
 		System.out.println("Indexing to directory '" + indexPath + "'...");
 		
 		Document doc = new Document();
-		Field url_field = new StringField("URL", url, Field.Store.YES);
+		Field url_field = new StringField("url", url, Field.Store.YES);
 		doc.add(url_field);
 		
-		doc.add(new TextField("Content", new StringReader(content)));
+		doc.add(new TextField("title", new StringReader(extractTitle(content))));
+		
+		doc.add(new TextField("content", new StringReader(normalize(content))));
 		
 		writer.addDocument(doc);
 		writer.close();
+	}
+	
+	public String extractTitle(String content) {
+		return Jsoup.parse(content).title();
 	}
 	
 	public List<String> extractURLs(String content)
@@ -179,7 +204,6 @@ public class Crawler {
 			InputStream urlStream;
 			try {
 				urlStream = website.openStream();
-				// thanks http://stackoverflow.com/questions/309424/read-convert-an-inputstream-to-a-string
 				java.util.Scanner s = new java.util.Scanner(urlStream).useDelimiter("\\A");
 			    return s.hasNext() ? s.next() : "";
 			} catch (IOException e) {
@@ -198,14 +222,28 @@ public class Crawler {
 	public static void main(String[] args) {
 		Crawler crawly = new Crawler();
 		
+		//default page
+		String webpage = "https://www.udacity.com/cs101x/index.html";
+		
 		for(int i = 0; i < args.length; i++) {
 			if(args[i].equals("-index") && i <args.length ) {
 				crawly.enableIndexing(args[i+1]);
 				i++;
+			} else if(args[i].equals("-page") && i <args.length ) {
+				webpage = args[i+1];
+				i++;
+			} else if(args[i].equals("-depth") && i <args.length ) {
+				try {
+					crawly.setMaxDepth(Integer.parseInt(args[i+1]));
+					i++;
+				} catch (NumberFormatException e) {
+					System.out.println("Please use a real number as depth");
+					System.exit(1);
+				}
 			}
 		}
 		
-		crawly.addURL("https://www.udacity.com/cs101x/index.html");
+		crawly.addURL(webpage);
 		crawly.start();
 		crawly.printVisitedUrls();
 		
