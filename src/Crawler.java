@@ -34,6 +34,7 @@ public class Crawler {
 	private HashMap<String, Date> VisitedUrls = new HashMap<String, Date>();
 	private String indexPath;
 	boolean indexing = false;
+	boolean first_time = true;
 	
 	public void addURL(String url)
 	{
@@ -111,7 +112,12 @@ public class Crawler {
 		
 		Directory dir = FSDirectory.open(new File(indexPath));
 		
-		iwc.setOpenMode(OpenMode.CREATE);
+		if(first_time) {
+			iwc.setOpenMode(OpenMode.CREATE);
+			first_time = false;
+		} else
+			iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
+		
 		IndexWriter writer = new IndexWriter(dir,iwc);
 		
 		System.out.println("Indexing to directory '" + indexPath + "'...");
@@ -122,9 +128,7 @@ public class Crawler {
 		
 		doc.add(new TextField("Content", new StringReader(content)));
 		
-		if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
-			writer.addDocument(doc);
-		}
+		writer.addDocument(doc);
 		writer.close();
 	}
 	
