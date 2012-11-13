@@ -145,7 +145,12 @@ public class Crawler {
 		Field url_field = new StringField("url", url, Field.Store.YES);
 		doc.add(url_field);
 		
-		doc.add(new TextField("title", new StringReader(extractTitle(content))));
+		Field title_field = new StringField("title", extractTitle(content), Field.Store.YES);
+		doc.add(title_field);
+		
+		String norm_content = normalize(content);
+		Field content_field = new StringField("content", norm_content, Field.Store.YES);
+		doc.add(content_field);
 		
 		doc.add(new TextField("content", new StringReader(normalize(content))));
 		
