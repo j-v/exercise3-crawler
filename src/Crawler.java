@@ -98,6 +98,7 @@ public class Crawler {
 		/**Start of normalization**/
 		//filter html tags
 		norm_content = Jsoup.parse(norm_content).text();
+		
 		//stemming
 		//...
 		
@@ -119,7 +120,7 @@ public class Crawler {
 		Field url_field = new StringField("URL", url, Field.Store.YES);
 		doc.add(url_field);
 		
-		doc.add(new TextField("Contents", new StringReader(content)));
+		doc.add(new TextField("Content", new StringReader(content)));
 		
 		if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
 			writer.addDocument(doc);
