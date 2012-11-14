@@ -241,7 +241,7 @@ public class Crawler {
 						
 						
 						//debug
-						System.out.println("added url:" + href);
+						//System.out.println("added url:" + href);
 						
 						urls.add(href);
 					}
